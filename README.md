@@ -1,201 +1,142 @@
-# VidaaEdge - VIDAA TV Development & Remote Control Toolkit
+# VidaaEdge Docker Setup
 
-A development toolkit for VidaaOS-based TVs enabling remote function exploration, custom JavaScript execution, and PWA installation.
+A Docker Compose setup for running the VidaaEdge development toolkit with integrated DNS configuration for VidaaOS-based TVs.
 
-**Status:** Development toolkit - use at your own risk.
+## Overview
 
-**Credits:**
-
-- Original project by [weinzii](https://github.com/weinzii/vidaa-edge)
-- Exploit research by [BananaMafia](https://bananamafia.dev/post/hisensehax/)
-- Functions scanning, remote control, remote code execution and file browser by [simonbuehler](https://github.com/simonbuehler)
-
----
+VidaaEdge is a development toolkit for VidaaOS-based TVs, enabling remote function exploration, custom JavaScript execution, and PWA installation. This Docker setup packages the application with a DNS server to simplify network configuration.
 
 ## Features
 
-### PWA Installer (TV-OS Optimized)
+- **Containerized Application**: Runs the VidaaEdge API server and Angular frontend in Docker
+- **Integrated DNS Server**: Includes dnsmasq to resolve `vidaahub.com` domain
+- **Persistent Data**: Mounts scan-data directory for session persistence
+- **HTTPS Support**: Uses self-signed certificates for secure TV access
 
-- **Unified installation interface** with TV remote-friendly navigation
-- **Dual installation methods:**
-  - **Legacy:** Uses Hisense's official `installApp` API
-  - **New:** Writes directly to system `Appinfo.json` via `HiUtils_createRequest`
-- **Auto-detection** of available installation methods
-- **Keyboard/remote navigation** support with arrow keys
+## Prerequisites
 
-### Remote Function Execution
-
-- Execute VIDAA TV functions from your host
-- Custom JavaScript runner with full-screen editor
-- Real-time results with expandable views
-- Persistent command history with timestamps
-
-### Function Explorer
-
-- Automatic discovery of all Hisense/VIDAA functions
-- Source code extraction and parameter detection
-- One-click copy to custom code editor
-- Category-based organization and search
-
-### File System Explorer
-
-- Browse TV file system remotely
-- Read file contents via `Hisense_FileRead`
-- Session persistence for scan results
-
----
+- Docker and Docker Compose installed
+- Git (to clone this repository)
+- Access to your network's DNS settings (to configure TV)
 
 ## Quick Start
 
-### 1. Install Dependencies
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/your-username/vidaa-edge-docker.git
+   cd vidaa-edge-docker
+   ```
 
+2. **Find your host IP address**:
+   ```bash
+   # On macOS/Linux
+   ifconfig | grep inet
+   # or
+   ip addr show
+   ```
+   Note the IP address of your network interface (e.g., 192.168.1.100).
+
+3. **Start the services**:
+   ```bash
+   HOST_IP=your_host_ip docker-compose up -d
+   ```
+   Replace `your_host_ip` with the IP address from step 2.
+
+4. **Configure your TV's DNS**:
+   - Go to your TV's network settings
+   - Set DNS server to your host IP address
+   - Save settings
+
+5. **Access the application**:
+   - Open `https://vidaahub.com/` in your TV's browser
+   - Accept the self-signed certificate warning
+
+## Services
+
+### vidaa-edge
+- **Ports**: 3000 (API), 443 (HTTPS frontend)
+- **Volumes**: `./scan-data` for persistent scan sessions
+- **Build**: Uses local Dockerfile based on Node.js 18
+
+### dnsmasq
+- **Ports**: 53 (DNS)
+- **Function**: Resolves `vidaahub.com` to your host IP
+- **Configuration**: Uses `HOST_IP` environment variable
+
+## Configuration
+
+### Environment Variables
+- `HOST_IP`: Your host machine's IP address (required)
+
+### Volumes
+- `./scan-data`: Persistent storage for TV scan sessions and data
+
+### Ports
+- `3000`: VidaaEdge API server
+- `443`: VidaaEdge HTTPS frontend
+- `53`: DNS server (dnsmasq)
+
+## Development
+
+### Building the Image
 ```bash
-npm install
+docker-compose build
 ```
 
-### 2. Start Development Server
-
+### Viewing Logs
 ```bash
-npm start
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f vidaa-edge
+docker-compose logs -f dnsmasq
 ```
 
-This starts both the API server (port 3000) and Angular dev server (port 443) concurrently.
-
-### 3. Configure DNS
-
-Point `vidaahub.com` to your host IP via DNS server/your router, pihole, adguard... you name it. :-)
-
-### 4. Access on TV
-
-Open `https://vidaahub.com/` in your TV's browser.
-
-### 5. Install PWAs
-
-Use the installer interface to add custom progressive web apps to your TV. (Restart TV after install, the installed app is now in the end of the list.)
-
----
-
-## NPM Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm start` | Start both API server and Angular dev server |
-| `npm run api` | Start only API server (port 3000) |
-| `npm run serve` | Start only Angular dev server (port 443) |
-| `npm run build` | Build for production |
-| `npm run build:prod` | Build for production (explicit) |
-| `npm test` | Run tests |
-| `npm run lint` | Run linter |
-
----
-
-## Architecture
-
-```
-TV (Scanner)              Development Server          Host (Controller)
-├── Discover Functions →  ├── Command Queue      ←    ├── Execute Functions
-├── Poll for Commands  ←  ├── Result Storage     →    ├── Custom JS Editor
-└── Send Results       →  └── Function Registry       └── PWA Installer
+### Stopping Services
+```bash
+docker-compose down
 ```
 
----
+## Troubleshooting
 
-## Project Structure
+### DNS Issues
+- Ensure `HOST_IP` is set correctly
+- Verify your TV's DNS settings point to your host IP
+- Check dnsmasq logs: `docker-compose logs dnsmasq`
 
-```
-vidaa-edge/
-├── server/                         # Backend API server
-│   ├── api-server.js               # Express API server
-│   ├── LoggingService.js           # Command logging
-│   └── TimingTrackerService.js     # Performance tracking
-├── src/
-│   ├── app/
-│   │   ├── components/
-│   │   │   ├── controller-console/ # Remote controller UI
-│   │   │   ├── tv-scanner/         # TV function scanner
-│   │   │   ├── file-explorer/      # File system browser
-│   │   │   └── remote-console/     # Remote command console
-│   │   ├── services/
-│   │   │   ├── app-management.service.ts  # PWA installation
-│   │   │   └── tv-command.service.ts      # TV communication
-│   │   └── pages/
-│   │       └── installer/          # PWA installer UI
-│   └── environments/               # Config files
-├── public/                         # Static assets
-└── scan-data/                      # Session persistence
-```
+### Certificate Warnings
+- The app uses self-signed certificates
+- Accept the security warning in your TV browser
 
----
+### Port Conflicts
+- Ensure ports 53, 3000, and 443 are not in use by other services
+- Modify port mappings in `docker-compose.yml` if needed
 
-## API Endpoints
+### Network Access
+- The TV must be on the same network as your host
+- Firewall rules may need to allow traffic on ports 53, 3000, 443
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/functions` | POST | Upload function list from TV |
-| `/api/functions` | GET | Retrieve discovered functions |
-| `/api/remote-command` | POST | Queue command for TV |
-| `/api/remote-command` | GET | Poll for pending commands |
-| `/api/execute-response` | POST | Submit command result |
-| `/api/execute-response/:id` | GET | Retrieve command result |
-| `/api/scan/session/save` | POST | Save scan session |
-| `/api/scan/sessions` | GET | List all sessions |
-| `/api/scan/session/load/:id` | GET | Load session data |
+## Security Notes
 
----
+- This setup uses self-signed certificates for HTTPS
+- Designed for local network development use only
+- Do not expose to public internet without proper security measures
 
-## Installation Methods
+## Contributing
 
-### Legacy Method (Hisense API)
-Uses `Hisense_installApp` function when available:
-```javascript
-Hisense_installApp(appId, appName, thumbnail, iconSmall, iconBig, appUrl, storeType, callback);
-```
-
-### New Method (File System)
-Writes directly to system `Appinfo.json` using `HiUtils_createRequest`:
-```javascript
-HiUtils_createRequest('fileWrite', {
-  path: 'websdk/Appinfo.json',
-  mode: 6,
-  writedata: JSON.stringify(apps)
-});
-```
-
-The installer auto-detects which methods are available on your TV.
-
----
-
-## Security Considerations
-
-- **Local Network Only:** Designed for development on trusted networks
-- **HTTPS Required:** TV browsers require secure connection
-- **Self-signed Certs:** Included in `certs/` for HTTPS support
-- **Custom Code Execution:** Allows arbitrary JavaScript on TV
-- **File System Access:** Can read/write files via Hisense APIs
-
----
-
-## Known Limitations
-
-- **App Installation:** Some TVs may be missing required functions
-- **Firmware Dependent:** Features vary by TV model and firmware version
-- **DNS Required:** Must spoof `vidaahub.com` domain to access Hisense APIs
-
----
-
-## References
-
-- **BananaMafia Research:** [Original exploit analysis](https://bananamafia.dev/post/hisensehax/)
-- **GitHub Repository:** [weinzii/vidaa-edge](https://github.com/weinzii/vidaa-edge)
-
----
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
----
+## Credits
 
-## Disclaimer
-
-This is an experimental development toolkit. Use at your own risk. Not endorsed by VidaaOS, Hisense, or any TV manufacturer. Only test on devices you own.
+- Original VidaaEdge project by [weinzii](https://github.com/weinzii/vidaa-edge)
+- Exploit research by [BananaMafia](https://bananamafia.dev/post/hisensehax/)
+- Docker setup inspired by community contributions

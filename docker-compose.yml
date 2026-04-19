@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  vidaa-edge:
+    build: .
+    ports:
+      - "3000:3000"
+      - "443:443"
+    volumes:
+      - ./scan-data:/app/scan-data
+
+  dnsmasq:
+    image: andyshinn/dnsmasq
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+    command: ["-A", "/vidaahub.com/${HOST_IP}"]
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+
+# To access the app from your TV as intended in the readme:
+# 1. Find your host's IP address (e.g., using ifconfig or ip addr)
+# 2. Run: HOST_IP=your_host_ip docker-compose up -d
+# 3. Set your TV's DNS server to your host's IP address
+# 4. Access https://vidaahub.com/ from your TV
